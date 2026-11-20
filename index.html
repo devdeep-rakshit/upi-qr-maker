@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10131b"><meta name="description" content="Create custom UPI payment QR codes with an editable amount and note.">
+<title>UPI Studio · Custom QR</title>
+<style>
+:root{color-scheme:dark;--bg:#0d1017;--panel:#171c27;--line:#2a3343;--muted:#9ba8bd;--text:#f4f7fc;--accent:#8b9cff;--accent2:#63e6be}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 15% 0%,#242d48 0,transparent 42%),var(--bg);color:var(--text);font:16px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;display:grid;place-items:center;padding:24px}
+.wrap{width:min(100%,920px)}header{margin:0 0 24px} .eyebrow{color:var(--accent2);font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}h1{font-size:clamp(30px,6vw,48px);line-height:1.05;margin:10px 0}header p{margin:0;color:var(--muted)}
+.layout{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}.panel{background:linear-gradient(160deg,#1a2130,#141923);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:0 18px 55px #0005}
+label{display:block;font-size:13px;font-weight:700;color:#d4dced;margin:0 0 7px}.field{margin-bottom:17px}input{width:100%;padding:14px 15px;border:1px solid #344056;border-radius:12px;background:#0f141e;color:var(--text);font:inherit;outline:none}input:focus{border-color:var(--accent);box-shadow:0 0 0 3px #8b9cff22}.inputrow{position:relative}.prefix{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)}.money{padding-left:31px}
+.hint{font-size:12px;color:var(--muted);margin:6px 0 0}.qrpanel{display:flex;flex-direction:column;align-items:center;text-align:center}.qrbox{width:min(100%,290px);aspect-ratio:1;background:white;border-radius:18px;display:grid;place-items:center;padding:14px;margin:8px 0 16px}.qrbox img{width:100%;height:100%;object-fit:contain}.empty{color:#596579;font-size:14px;padding:30px}.amount{font-size:32px;font-weight:850;letter-spacing:-.04em}.payee{color:var(--muted);font-size:13px;overflow-wrap:anywhere}.pill{border:1px solid #34564e;color:var(--accent2);border-radius:30px;padding:5px 11px;font-size:11px;font-weight:800;letter-spacing:.08em;margin-bottom:10px}
+.actions{display:flex;gap:10px;width:100%;margin-top:15px}.btn{border:0;border-radius:12px;padding:13px 16px;font:700 14px inherit;cursor:pointer;flex:1;transition:transform .15s,opacity .15s}.btn:active{transform:scale(.98)}.primary{background:linear-gradient(110deg,#9aa8ff,#6de5c0);color:#101521}.secondary{background:#252e3e;color:var(--text);border:1px solid #3b4659}.btn:disabled{opacity:.35;cursor:not-allowed}
+.status{min-height:20px;color:#ffb4a7;font-size:12px;margin-top:10px}.footer{color:#76849a;font-size:12px;text-align:center;margin-top:18px}.disclaimer{background:#121925;border:1px solid #293648;border-radius:12px;padding:12px;color:#9eabc0;font-size:12px;margin-top:15px}
+@media(max-width:700px){body{padding:18px 14px;align-items:start}.layout{grid-template-columns:1fr}.panel{padding:20px}.qrpanel{order:2}}
+</style>
+</head>
+<body><main class="wrap">
+<header><div class="eyebrow">UPI Studio / 01</div><h1>Your QR. Your amount.</h1><p>Generate a payment QR in seconds. Scan it with any UPI app.</p></header>
+<div class="layout">
+<section class="panel" aria-label="UPI details">
+<div class="field"><label for="upi">UPI ID</label><input id="upi" value="9430927071@amazonpay" autocomplete="off" spellcheck="false"><p class="hint">The default UPI ID is pre-filled. You can change it anytime.</p></div>
+<div class="field"><label for="name">Payee name <span style="color:#7f8da3;font-weight:400">(optional)</span></label><input id="name" placeholder="Your name or business" maxlength="60"></div>
+<div class="field"><label for="amount">Amount (INR)</label><div class="inputrow"><span class="prefix">₹</span><input class="money" id="amount" inputmode="decimal" type="number" min="1" max="1000000" step="0.01" placeholder="Enter amount"></div><p class="hint">Leave empty to make an open-amount QR.</p></div>
+<div class="field"><label for="note">Payment note <span style="color:#7f8da3;font-weight:400">(optional)</span></label><input id="note" maxlength="80" placeholder="e.g. Order #1024"></div>
+<div class="disclaimer">This creates a UPI payment request QR only. It does not collect money or verify payments. Check the UPI ID and amount before sharing.</div>
+</section>
+<section class="panel qrpanel" aria-label="Generated QR code">
+<div class="pill">LIVE PREVIEW</div><div class="qrbox"><div class="empty" id="placeholder">Enter an amount or scan-ready details to generate your QR.</div><img id="qr" alt="UPI payment QR code" hidden></div>
+<div class="amount" id="displayAmount">Any amount</div><div class="payee" id="displayUpi">9430927071@amazonpay</div>
+<div class="actions"><button class="btn primary" id="download" disabled>Download QR</button><button class="btn secondary" id="copy" disabled>Copy UPI link</button></div><div class="status" id="status" role="status" aria-live="polite"></div>
+</section>
+</div>
+<div class="footer">Made for quick, simple UPI payments · No account or data storage</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let currentUri="";
+function build(){
+ const pa=$("upi").value.trim(),pn=$("name").value.trim(),am=$("amount").value.trim(),tn=$("note").value.trim();
+ $("status").textContent="";
+ if(!pa||! /^[^\s@]+@[^\s@]+$/.test(pa)){showError("Enter a valid UPI ID, such as name@bank.");return;}
+ if(am && (!Number.isFinite(Number(am))||Number(am)<=0||Number(am)>1000000)){showError("Enter an amount between ₹1 and ₹10,00,000.");return;}
+ const params=new URLSearchParams({pa,cu:"INR"});
+ if(pn)params.set("pn",pn);
+ if(am)params.set("am",Number(am).toFixed(2));
+ if(tn)params.set("tn",tn);
+ params.set("tr","UPI"+Date.now());
+ currentUri="upi://pay?"+params.toString();
+ const qrUrl="https://api.qrserver.com/v1/create-qr-code/?size=640x640&margin=12&data="+encodeURIComponent(currentUri);
+ $("qr").src=qrUrl;$("qr").hidden=false;$("placeholder").hidden=true;
+ $("displayAmount").textContent=am?"₹"+Number(am).toLocaleString("en-IN",{minimumFractionDigits:2,maximumFractionDigits:2}):"Any amount";
+ $("displayUpi").textContent=pn?pn+" · "+pa:pa;
+ $("download").disabled=false;$("copy").disabled=false;
+}
+function showError(msg){$("status").textContent=msg;$("qr").hidden=true;$("placeholder").hidden=false;$("placeholder").textContent="QR unavailable until details are valid.";$("download").disabled=true;$("copy").disabled=true;currentUri="";}
+["upi","name","amount","note"].forEach(id=>$(id).addEventListener("input",build));
+$("download").addEventListener("click",async()=>{
+ if(!currentUri)return;
+ try{const response=await fetch($("qr").src);if(!response.ok)throw Error("QR download unavailable");const blob=await response.blob();const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="upi-payment-qr.png";a.click();URL.revokeObjectURL(a.href);$("status").textContent="QR downloaded.";}
+ catch(e){$("status").textContent="Could not download the QR. Take a screenshot or try again.";}
+});
+$("copy").addEventListener("click",async()=>{
+ try{await navigator.clipboard.writeText(currentUri);$("status").textContent="UPI payment link copied.";}
+ catch(e){$("status").textContent="Clipboard unavailable. Copy the link from your browser manually.";}
+});
+build();
+</script></body></html>
